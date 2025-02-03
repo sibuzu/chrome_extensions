@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Novel Extractor",
+  "version": "1.0",
+  "description": "提取小說內容並下載為文字檔",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["https://novel18.syosetu.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://novel18.syosetu.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
