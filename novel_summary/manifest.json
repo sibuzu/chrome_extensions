@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Novel Summary",
+  "version": "1.0",
+  "description": "Summarize novel chapters using Gemini Flash API",
+  "permissions": [
+    "sidePanel",
+    "scripting",
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://generativelanguage.googleapis.com/*",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Open Side Panel"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
+}
