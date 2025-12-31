@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>MyGPT Sidebar</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+
+<body>
+  <!-- SVG Template -->
+  <template id="toggle-icon-template">
+    <svg class="toggle-icon" viewBox="0 0 24 24" stroke="#065f46" fill="none" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="7" ry="7" stroke="#065f46" fill="none" />
+      <line x1="8" y1="12" x2="16" y2="12" stroke="#065f46" />
+      <line x1="12" y1="8" x2="12" y2="16" stroke="#065f46" id="v-line" />
+    </svg>
+  </template>
+
+  <template id="download-icon-template">
+    <svg class="status-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/>
+      <line x1="12" y1="15" x2="12" y2="3"/>
+    </svg>
+  </template>
+
+  <template id="queue-icon-template">
+    <svg class="status-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="12 6 12 12 16 14"/>
+    </svg>
+  </template>
+
+  <template id="completed-icon-template">
+    <svg class="status-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+      <polyline points="22 4 12 14.01 9 11.01"/>
+    </svg>
+  </template>
+
+  <template id="default-icon-template">
+    <svg class="status-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12" y2="16"/>
+    </svg>
+  </template>
+
+  <div class="container">
+    <!-- State Panel -->
+    <div class="panel panel-first">
+      <div class="panel-header">
+        State
+        <div class="toggle-icon-container" data-state="open"></div>
+      </div>
+      <div class="panel-content" style="display: block;">
+        <div id="title">Title:</div>
+        <div id="url">URL:</div>
+        <div id="image">Image:</div>
+        <div id="description">Description:</div>
+      </div>
+    </div>
+
+    <!-- Video Download Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        Video Download
+        <div class="toggle-icon-container" data-state="open"></div>
+      </div>
+      <div class="panel-content" style="display: block;">
+        <button id="downloadVideo">Download</button>
+        <div id="source">Source:</div>
+        <div id="taskId">Task ID:</div>
+        <div id="taskStatus">Task Status:</div>
+        <div id="taskMessage">Message:</div>
+      </div>
+    </div>
+
+    <!-- Video List Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        Video List
+        <div class="toggle-icon-container" data-state="open"></div>
+      </div>
+      <div class="panel-content" style="display: block;">
+        <button id="queryVideo">Query</button>
+        <div id="queueStats"></div>
+        <div id="listVideo" class="video-list-table"></div>
+      </div>
+    </div>
+  </div>
+  <script src="sidepanel.js"></script>
+</body>
+
+</html>

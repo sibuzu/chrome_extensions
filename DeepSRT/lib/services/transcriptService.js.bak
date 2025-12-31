@@ -1,0 +1,637 @@
+import { API_CONFIG } from '../config.js';
+import { mockFetch } from './mockService.js';
+import { Config } from '../config.js';
+
+// Function to normalize newlines (replace all newlines with spaces)
+function normalizeNewlines(text) {
+  return text.replace(/\n+/g, ' ').trim();
+}
+
+// Function to normalize language codes for API calls
+function normalizeLanguageCode(lang) {
+  if (!lang) {
+    console.log('[Sidebar] No language provided, defaulting to "en"');
+    return 'en';
+  }
+  
+  // Convert to lowercase for consistent handling
+  const lowerLang = lang.toLowerCase();
+  
+  // Map UI language codes to API language codes
+  let normalizedLang = lowerLang;
+  
+  // Special handling for Chinese variants
+  if (lowerLang === 'zh-cn') {
+    normalizedLang = 'zh-cn'; // Ensure simplified Chinese is correctly mapped
+  } else if (lowerLang === 'zh-tw') {
+    normalizedLang = 'zh-tw'; // Traditional Chinese (Taiwan)
+  } else if (lowerLang === 'zh-hk') {
+    normalizedLang = 'zh-hk'; // Traditional Chinese (Hong Kong)
+  }
+  
+  console.log('[Sidebar] Normalizing language code:', {
+    input: lang,
+    output: normalizedLang
+  });
+  
+  return normalizedLang;
+}
+
+// Toggle convert buttons visibility
+function toggleConvertButtons(show) {
+  const convertButtons = document.querySelector('.convert-buttons');
+  if (convertButtons) {
+    if (show) {
+      convertButtons.classList.add('visible');
+    } else {
+      convertButtons.classList.remove('visible');
+    }
+  }
+}
+
+// Function to auto-summarize content
+export async function autoSummarize(appState, existingTranscript, targetLang = 'en') {
+  // Validate required parameters
+  if (!existingTranscript || !appState.title || (!appState.transcriptArg && !appState.isProxySource)) {
+    console.error('[Sidebar] Missing required data:', {
+      hasTranscript: !!existingTranscript,
+      hasTitle: !!appState.title,
+      hasArg: !!appState.transcriptArg,
+      isProxySource: !!appState.isProxySource
+    });
+    throw new Error('Missing required data for summarization');
+  }
+
+  if (!targetLang) {
+    console.error('[Sidebar] No target language specified');
+    throw new Error('No language specified for summarization');
+  }
+
+  // Get DOM elements
+  const summary = document.querySelector('#summary');
+  const summaryContainer = document.querySelector('.summary-container');
+  const summaryToolbar = document.querySelector('.summary-toolbar');
+
+  // Get bullet list mode from Config or use provided mode
+  let mode;
+  if (appState.mode) {
+    // Use the mode passed from the caller if available
+    mode = appState.mode;
+    console.log('[Sidebar] Using provided mode:', mode);
+  } else {
+    // Otherwise get from config
+    const isBulletMode = await Config.getBulletListEnabled();
+    mode = isBulletMode ? 'bullet' : 'narrative';
+    console.log('[Sidebar] Using config-based mode:', mode);
+  }
+
+  // Reset state and show loading
+  if (summary) {
+    summary.textContent = 'Loading summary...';
+    summaryContainer?.classList.remove('error');
+    summary.classList.remove('error');
+    summary.classList.add('translating');
+    summary.style.fontStyle = 'normal';
+    summary.style.color = 'var(--text-primary)';
+    summaryContainer?.classList.add('visible');
+    summaryToolbar?.classList.add('visible', 'translating');
+  }
+
+  const endpoint = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.TRANSCRIPT}`;
+  const normalizedLang = normalizeLanguageCode(targetLang);
+
+  try {
+    console.log('[Sidebar] Fetching summary and title in language:', normalizedLang);
+
+    // Log API request details
+    console.log('[Sidebar] Making API4 requests with:', {
+      transcriptArg: appState.transcriptArg,
+      targetLang,
+      normalizedLang,
+      appState
+    });
+
+    // Check if this is a proxy SRT request
+    const isProxyRequest = appState.isProxySource === true;
+    const proxyUrl = isProxyRequest && appState.proxyUrl ? appState.proxyUrl : null;
+    
+    console.log('[Sidebar] API request type:', isProxyRequest ? 'proxy SRT' : 'native captions');
+    if (isProxyRequest) {
+      console.log('[Sidebar] Using proxy URL:', proxyUrl);
+      console.log('[Sidebar] Using mode:', mode);
+    }
+    
+    // Make both API calls in parallel using normalized language
+    const [summaryResponse, titleResponse] = await Promise.all([
+      mockFetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          isProxyRequest && proxyUrl 
+            ? {
+              proxy: proxyUrl,
+              action: 'summarize',
+              lang: normalizedLang,
+              mode: mode
+            }
+            : {
+              arg: appState.transcriptArg,
+              action: 'summarize',
+              lang: normalizedLang,
+              mode: mode
+            }
+        ),
+      }),
+      mockFetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          isProxyRequest && proxyUrl 
+            ? {
+              proxy: proxyUrl,
+              txt: appState.title,
+              action: 'translate',
+              lang: normalizedLang,
+              mode: mode
+            }
+            : {
+              arg: appState.transcriptArg,
+              txt: appState.title,
+              action: 'translate',
+              lang: normalizedLang,
+              mode: mode
+            }
+        ),
+      }),
+    ]);
+
+    if (!summaryResponse.ok || !titleResponse.ok) {
+      const errorResponse = !summaryResponse.ok ? summaryResponse : titleResponse;
+      let errorMessage;
+      try {
+        const errorData = await errorResponse.json();
+        errorMessage = errorData.error || `Service is temporarily busy (Code: ${errorResponse.status})`;
+      } catch (e) {
+        errorMessage = `Service is temporarily busy (Code: ${errorResponse.status})`;
+      }
+
+      // Show error in summary container only
+      if (summaryContainer) {
+        summaryContainer.classList.add('visible');
+        summary.textContent = errorMessage;
+        summary.classList.add('error');
+        summaryToolbar?.classList.remove('visible', 'translating');
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const [summaryData, titleData] = await Promise.all([
+      summaryResponse.json(),
+      titleResponse.json(),
+    ]);
+
+    const summaryText = summaryData.summary;
+    const translatedTitle = titleData.translation;
+
+    // Update summary with results and remove loading state
+    if (summary && summaryText) {
+      summary.textContent = summaryText;
+      summary.classList.remove('translating');
+      summaryContainer?.classList.add('visible');
+      summaryToolbar?.classList.remove('translating');
+    }
+
+    // Update title
+    if (translatedTitle) {
+      const titleElement = document.querySelector('.video-title');
+      if (titleElement) {
+        const translatedTitleDiv = document.createElement('div');
+        translatedTitleDiv.className = 'translated';
+        translatedTitleDiv.textContent = normalizeNewlines(translatedTitle);
+
+        const originalTitle = document.createElement('div');
+        originalTitle.className = 'original';
+        originalTitle.textContent = appState.title;
+
+        titleElement.innerHTML = '';
+        titleElement.appendChild(translatedTitleDiv);
+        titleElement.appendChild(originalTitle);
+      }
+    }
+  } catch (error) {
+    console.error('[Sidebar] Error generating summary:', error);
+    
+    // Show error in summary container only
+    if (summaryContainer) {
+      summaryContainer.classList.add('visible');
+      summary.textContent = error.message;
+      summary.classList.add('error');
+      summaryToolbar?.classList.remove('visible', 'translating');
+    }
+    
+    throw error;
+  }
+}
+
+// Update transcript display
+export async function updateTranscriptDisplay(elements, storeState, transcriptFetcher) {
+  if (!storeState?.videoId) {
+    console.error('[Sidebar] No video ID available');
+    throw new Error('No video ID available. Please try refreshing the page.');
+  }
+  
+  try {
+    // Reset error states
+    elements.transcript?.classList.remove('error');
+    
+    if (elements.transcript) {
+      elements.transcript.textContent = 'Loading transcript...';
+    }
+
+    const format = elements.format?.value || 'text';
+    const lang = normalizeLanguageCode(storeState.preferredLanguage);
+    
+    console.log('[Sidebar] Preparing transcript request:', {
+      videoId: storeState.videoId,
+      language: lang,
+      format,
+      hasCaptions: storeState.hasCaptions,
+      isProxySource: storeState.isProxySource
+    });
+
+    // We're not checking for existing proxy data in the store anymore
+    // Just proceed with checking hasCaptions status
+    
+    // Check if captions are not available, try proxy SRT
+    if (storeState.hasCaptions === false) {
+      console.log('[Sidebar] No native captions available, trying proxy SRT', {
+        videoId: storeState.videoId,
+        title: storeState.title,
+        hasCaptions: storeState.hasCaptions,
+        hasPlayerData: !!storeState.playerData
+      });
+      
+      // Ensure we have a valid videoId before attempting to fetch
+      if (!storeState.videoId) {
+        console.error('[Sidebar] Cannot fetch proxy SRT: Missing videoId in store state');
+        return;
+      }
+      
+      // Normalize videoId if it's not in the expected format
+      let videoId = storeState.videoId;
+      if (typeof videoId !== 'string') {
+        console.warn('[Sidebar] videoId is not a string, attempting to convert:', videoId);
+        videoId = String(videoId);
+      }
+      
+      // Check if videoId looks valid (not empty, null, undefined as strings)
+      if (videoId === 'null' || videoId === 'undefined' || videoId.trim() === '') {
+        console.error('[Sidebar] Invalid videoId format:', videoId);
+        return;
+      }
+      
+      try {
+        // Dynamically import the proxy transcript fetcher
+        const { fetchProxySRT, parseSRTContent } = await import('../proxyTranscriptFetcher.js');
+        console.log('[Sidebar] Fetching proxy SRT for video:', videoId, 'language:', lang);
+        
+        // Fetch the proxy SRT content
+        let proxyData;
+        try {
+          proxyData = await fetchProxySRT(videoId, lang);
+          console.log('[Sidebar] Proxy fetch completed successfully');
+        } catch (fetchError) {
+          console.error('[Sidebar] Error in fetchProxySRT:', fetchError.message);
+          
+          // Check if this is a permission error
+          if (fetchError.message.includes('Permission not granted') || 
+              fetchError.message.includes('proxy server')) {
+            
+            try {
+              // Get the current SRT provider URL
+              const srtProvider = await Config.getSrtProvider();
+              
+              // Check if we have permission for the SRT provider
+              const hasPermission = await new Promise(resolve => {
+                chrome.permissions.contains({ origins: [`${srtProvider}/*`] }, resolve);
+              });
+              
+              if (!hasPermission) {
+                console.log(`Requesting permission for: ${srtProvider}/*`);
+                const granted = await new Promise(resolve => {
+                  chrome.permissions.request({ origins: [`${srtProvider}/*`] }, resolve);
+                });
+                console.log(`Permission request result: ${granted}`);
+                if (!granted) {
+                  console.log('Permission denied');
+                  if (elements.transcript) {
+                    elements.transcript.innerHTML = `
+                      <div style="
+                        text-align: center; 
+                        padding: 20px; 
+                        color: #aaa; 
+                        display: flex; 
+                        flex-direction: column; 
+                        align-items: center;
+                      ">
+                        <p style="margin-bottom: 20px;">Permission denied for subtitle access</p>
+                        <button id="retry-permission-btn" 
+                                style="
+                                  padding: 8px 16px; 
+                                  cursor: pointer; 
+                                  background: #3ea6ff; 
+                                  border: none; 
+                                  border-radius: 4px; 
+                                  color: white; 
+                                  font-weight: bold; 
+                                  font-size: 14px; 
+                                  width: 240px; 
+                                  display: flex; 
+                                  justify-content: center; 
+                                  align-items: center; 
+                                  white-space: nowrap;
+                                ">
+                          Retry Permission Request
+                        </button>
+                      </div>
+                    `;
+                    
+                    // Add click handler for the retry button
+                    const retryBtn = document.getElementById('retry-permission-btn');
+                    if (retryBtn) {
+                      retryBtn.addEventListener('click', async () => {
+                        console.log('Retry button clicked');
+                        
+                        try {
+                          // Dynamically import the proxy transcript fetcher
+                          const { fetchProxySRT, parseSRTContent } = await import('../proxyTranscriptFetcher.js');
+                          
+                          // Get the SRT provider URL
+                          const srtProvider = await Config.getSrtProvider();
+                          
+                          if (!srtProvider) {
+                            console.error('[Sidebar] No SRT provider configured');
+                            if (elements.transcript) {
+                              elements.transcript.innerHTML = `
+                                <div style="color: #ff6b6b; padding: 20px; text-align: center;">
+                                  No SRT provider URL configured. Please configure it in the extension settings.
+                                </div>
+                              `;
+                            }
+                            return;
+                          }
+                          
+                          // Explicitly request permission for the proxy domain
+                          console.log('[Sidebar] Requesting permission for proxy domain:', srtProvider);
+                          
+                          const permissionResult = await new Promise((resolve) => {
+                            chrome.permissions.request({
+                              origins: [`${srtProvider}/*`]
+                            }, (granted) => {
+                              console.log('[Sidebar] Permission request result:', granted);
+                              resolve(granted);
+                            });
+                          });
+                          
+                          if (!permissionResult) {
+                            console.error('[Sidebar] Permission denied for proxy domain');
+                            if (elements.transcript) {
+                              elements.transcript.innerHTML = `
+                                <div style="color: #ff6b6b; padding: 20px; text-align: center;">
+                                  Permission denied for accessing the proxy server. Please enable access to the proxy server in the extension settings.
+                                </div>
+                              `;
+                            }
+                            return;
+                          }
+                          
+                          console.log('[Sidebar] Permission granted, fetching transcript');
+                          
+                          // Create a temporary proxy transcript fetcher
+                          const proxyTranscriptFetcher = {
+                            fetchTranscript: async (videoId, provider) => {
+                              try {
+                                const srtContent = await fetchProxySRT(videoId, provider);
+                                if (srtContent) {
+                                  const parsedContent = parseSRTContent(srtContent);
+                                  if (elements.transcript) {
+                                    elements.transcript.innerHTML = parsedContent;
+                                  }
+                                }
+                              } catch (error) {
+                                console.error('[Sidebar] Error fetching proxy transcript:', error);
+                                if (elements.transcript) {
+                                  elements.transcript.innerHTML = `
+                                    <div style="color: #ff6b6b; padding: 20px; text-align: center;">
+                                      Failed to load transcript. Please check your SRT provider URL and try again.
+                                    </div>
+                                  `;
+                                }
+                              }
+                            }
+                          };
+                          
+                          // Fetch the transcript
+                          if (storeState.videoId) {
+                            await proxyTranscriptFetcher.fetchTranscript(storeState.videoId, srtProvider);
+                          } else {
+                            console.error('[Sidebar] No video ID available');
+                            if (elements.transcript) {
+                              elements.transcript.innerHTML = `
+                                <div style="color: #ff6b6b; padding: 20px; text-align: center;">
+                                  No video ID available. Please refresh the page and try again.
+                                </div>
+                              `;
+                            }
+                          }
+                        } catch (error) {
+                          console.error('[Sidebar] Error in retry button handler:', error);
+                          if (elements.transcript) {
+                            elements.transcript.innerHTML = `
+                              <div style="color: #ff6b6b; padding: 20px; text-align: center;">
+                                An error occurred while trying to fetch the transcript. Please try again.
+                              </div>
+                            `;
+                          }
+                        }
+                      });
+                    }
+                  }
+                } else {
+                  console.log('Already have permission, fetching transcript');
+                  // Fetch the transcript
+                  const { fetchProxySRT, parseSRTContent } = await import('../proxyTranscriptFetcher.js');
+                  const proxyTranscriptFetcher = {
+                    fetchTranscript: async (videoId, provider) => {
+                      try {
+                        const srtContent = await fetchProxySRT(videoId, provider);
+                        if (srtContent) {
+                          const parsedContent = parseSRTContent(srtContent);
+                          if (elements.transcript) {
+                            elements.transcript.innerHTML = parsedContent;
+                          }
+                        }
+                      } catch (error) {
+                        console.error('[Sidebar] Error fetching proxy transcript:', error);
+                        if (elements.transcript) {
+                          elements.transcript.innerHTML = `
+                            <div style="color: #ff6b6b; padding: 20px; text-align: center;">
+                              Failed to load transcript. Please check your SRT provider URL and try again.
+                            </div>
+                          `;
+                        }
+                      }
+                    }
+                  };
+                  await proxyTranscriptFetcher.fetchTranscript(storeState.videoId, srtProvider);
+                }
+              
+                // Exit early, don't throw the error further
+                return;
+              } catch (permissionError) {
+                console.error('[Sidebar] Error handling permissions:', permissionError);
+                throw permissionError;
+              }
+            }
+          
+            throw fetchError;
+          } catch (error) {
+            console.error('[Sidebar] Error fetching proxy SRT:', error);
+            // Continue with normal flow to try native captions as fallback
+          }
+        } catch (error) {
+          console.error('[Sidebar] Error fetching proxy SRT:', error);
+          // Continue with normal flow to try native captions as fallback
+        }
+    }
+    
+    // If we get here, try the normal transcript fetching flow
+    if (!transcriptFetcher) {
+      console.error('[Sidebar] TranscriptFetcher is not initialized');
+      throw new Error('Failed to load transcript. Please try refreshing the page.');
+    }
+
+    const endpoint = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.TRANSCRIPT}`;
+    
+    // First get the transcript URL and extract the arg
+    await transcriptFetcher.fetchTranscript(storeState.videoId);
+    const transcriptArg = transcriptFetcher.getTranscriptArg();
+
+    // Store the arg in the state for later use
+    storeState.transcriptArg = transcriptArg;
+
+    // Make the transcript request
+    const response = await mockFetch(endpoint, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        arg: transcriptArg,
+        format,
+        lang, // Include language in request
+      }),
+    });
+
+    if (!response.ok) {
+      let errorMessage;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error;
+      } catch (e) {
+        // If we can't parse the error JSON, create a user-friendly message based on status
+        if (response.status === 429) {
+          errorMessage = 'Too many requests. Please wait a moment and try again.';
+        } else {
+          errorMessage = `Failed to fetch transcript (Status ${response.status})`;
+        }
+      }
+      console.error('[Sidebar] Fetch error:', {
+        status: response.status,
+        message: errorMessage
+      });
+      throw new Error(errorMessage);
+    }
+
+    let content = await response.text();
+    if (!elements.transcript) {
+      console.error('[Sidebar] Transcript element not found');
+      throw new Error('Transcript element not found');
+    }
+
+    // Format-specific processing
+    if (format === 'text') {
+      // Only normalize newlines for TXT format
+      content = normalizeNewlines(content);
+    } else if (format === 'srt' || format === 'json') {
+      // Preserve original formatting for SRT and JSON
+      content = content.trim();
+    }
+    
+    // Store the transcript and show convert buttons
+    elements.transcript.textContent = content;
+    toggleConvertButtons(true);
+
+    // Then try to generate summary - if it fails, transcript will remain visible
+    try {
+      console.log('[Sidebar] Summary request details:', {
+        videoId: storeState.videoId,
+        title: storeState.title,
+        preferredLanguage: storeState.preferredLanguage,
+        state: storeState
+      });
+
+      const targetLang = storeState.preferredLanguage;
+      console.log('[Sidebar] Calling autoSummarize with language:', targetLang);
+      await autoSummarize({
+        videoId: storeState.videoId,
+        title: storeState.title,
+        transcriptArg,
+        preferredLanguage: targetLang, // Add language to appState
+      }, content, targetLang);
+      
+      console.log('[Sidebar] Summary request details:', {
+        videoId: storeState.videoId,
+        title: storeState.title,
+        preferredLanguage: storeState.preferredLanguage,
+        state: storeState
+      });
+    } catch (error) {
+      console.error('[Sidebar] Error generating summary:', error);
+      return;
+    }
+  } catch (error) {
+    console.error('[Sidebar] Error updating transcript display:', error);
+    
+    // Only show error message if we failed to get the initial transcript
+    if (!elements.transcript?.textContent || elements.transcript.textContent === 'Loading transcript...') {
+      // Determine the appropriate error message based on the situation
+      let errorMessage = 'Failed to load transcript. Please try refreshing the page.';
+      
+      // Check if we have no native captions
+      if (storeState.hasCaptions === false) {
+        // Check if an SRT provider is defined
+        Config.getSrtProvider().then(srtProvider => {
+          if (!srtProvider || srtProvider === 'undefined') {
+            // No native CC and no SRT provider defined
+            elements.transcript.textContent = 'No native CC transcript.';
+          } else {
+            // No native CC and SRT provider defined but doesn't return anything
+            elements.transcript.textContent = 'No native CC transcript from the video and the SRT provider.';
+          }
+          elements.transcript.classList.add('error');
+          toggleConvertButtons(false);
+        });
+      } else {
+        // Default error message for other cases
+        elements.transcript.textContent = errorMessage;
+        elements.transcript.classList.add('error');
+        toggleConvertButtons(false);
+      }
+    }
+    
+    throw error;
+  }
+}
