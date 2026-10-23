@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>MyGPT 1.0.1</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+
+<body>
+  <!-- SVG Template -->
+  <template id="toggle-icon-template">
+    <svg class="toggle-icon" viewBox="0 0 24 24" stroke="#065f46" fill="none" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="7" ry="7" stroke="#065f46" fill="none" />
+      <line x1="8" y1="12" x2="16" y2="12" stroke="#065f46" />
+      <line x1="12" y1="8" x2="12" y2="16" stroke="#065f46" id="v-line" />
+    </svg>
+  </template>
+
+  <div class="container">
+    <!-- State Panel - Initially expanded -->
+    <div class="panel panel-first">
+      <div class="panel-header">
+        State
+        <div class="toggle-icon-container" data-state="open"></div>
+      </div>
+      <div class="panel-content" style="display: block;">
+        <div class="notify-section">
+          <label>
+            <input type="checkbox" id="notifyTelegram" style="width: auto; margin-right: 5px;"> Notify Telegram When
+            Ready
+          </label>
+        </div>
+        <div id="state">State:</div>
+        <div id="elapsedTime">Elapsed:</div>
+      </div>
+    </div>
+
+    <!-- Send Message Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        Send Message
+        <div class="toggle-icon-container" data-state="open"></div>
+      </div>
+      <div class="input-section">
+        <div id="messageInput" class="message-input" contenteditable="true"
+          placeholder="Type your message or paste an image..."></div>
+        <div class="button-container">
+          <button id="sendMsg">Send</button>
+          <button id="clearQueue">Clear</button>
+          <button id="uploadBtn">Upload</button>
+          <input type="file" id="fileInput" accept="image/*" multiple style="display: none;">
+          <button id="scriptBtn">Script</button>
+          <input type="file" id="scriptInput" accept=".json" style="display: none;">
+        </div>
+        <div class="pause-checkbox">
+          <input type="checkbox" id="pauseQueue"> Pause
+        </div>
+        <div id="promptList" class="mt-2">
+          <!-- Prompt list will be displayed here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Image Download Panel - Initially collapsed -->
+    <div class="panel">
+      <div class="panel-header">
+        Image Download
+        <div class="toggle-icon-container" data-state="closed"></div>
+      </div>
+      <div class="panel-content" style="display: none;">
+        <button id="downloadImages">Download</button>
+        <div id="downloadStatus">Status:</div>
+        <div id="pageId">PageID:</div>
+        <div id="totalTurns">Total Turns: 0</div>
+        <div id="imgList" class="mt-2">
+          <!-- Image list will be displayed here -->
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="sidepanel.js"></script>
+</body>
+
+</html>

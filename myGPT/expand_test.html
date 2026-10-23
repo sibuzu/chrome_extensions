@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Collapsible UI</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 16px;
+      width: 300px;
+      background-color: #f2f4f7;
+    }
+
+    .panel {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .panel-header {
+      padding: 2px 12px;
+      background-color: #a7f3d0;
+      color: #065f46;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-content {
+      padding: 12px 16px;
+      display: none;
+      animation: fadeIn 0.3s ease-in-out;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .download-btn {
+      background-color: #ccc;
+      color: #333;
+      border: none;
+      padding: 4px;
+      border-radius: 6px;
+      width: 100%;
+      margin-top: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .download-btn:hover {
+      background-color: #6ee7b7;
+    }
+
+    .toggle-icon {
+      width: 24px;
+      height: 24px;
+    }
+
+    @keyframes fadeIn {
+      from {opacity: 0;}
+      to {opacity: 1;}
+    }
+  </style>
+</head>
+<body>
+
+  <div class="panel">
+    <div class="panel-header" onclick="togglePanel(this)">
+      Image Download
+      <svg class="toggle-icon" id="toggle-icon" viewBox="0 0 24 24" stroke="#065f46" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-state="closed">
+        <rect x="2" y="2" width="20" height="20" rx="7" ry="7" stroke="#065f46" fill="none" />
+        <line x1="8" y1="12" x2="16" y2="12" stroke="#065f46"/>
+        <line x1="12" y1="8" x2="12" y2="16" stroke="#065f46" id="v-line"/>
+      </svg>
+    </div>
+    <div class="panel-content">
+        <button class="download-btn">Download</button>
+        <strong>Download Status:</strong> <span id="downloadStatus">done</span><br>
+        <strong>Page ID:</strong> <span id="pageId">---</span><br>
+        <strong>Total Turns:</strong> <span id="totalTurns">0</span>
+    </div>
+  </div>
+
+  <script>
+    function togglePanel(header) {
+      const content = header.nextElementSibling;
+      const icon = header.querySelector('#toggle-icon');
+      const verticalLine = icon.querySelector('#v-line');
+      const isOpen = content.style.display === 'block';
+
+      content.style.display = isOpen ? 'none' : 'block';
+
+      if (isOpen) {
+        verticalLine.style.display = 'block';  // show "+" when closed
+        icon.setAttribute('data-state', 'closed');
+      } else {
+        verticalLine.style.display = 'none';   // hide vertical bar to make it "-"
+        icon.setAttribute('data-state', 'open');
+      }
+    }
+  </script>
+
+</body>
+</html>

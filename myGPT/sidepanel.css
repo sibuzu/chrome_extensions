@@ -1,0 +1,259 @@
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  margin: 0;
+  padding: 4px;
+  background-color: #f2f4f7;
+  height: 100vh;
+  box-sizing: border-box;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Panel Styles */
+.panel {
+  background-color: white;
+  border-radius: 10px;
+  border: 1px solid #666666;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.panel-first {
+  margin-top: 0;
+}
+
+.panel-header {
+  padding: 8px 12px;
+  background-color: #a7f3d0;
+  color: #065f46;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel-content {
+  padding: 12px;
+  margin: 0;
+  display: none;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Toggle Icon */
+.toggle-icon {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.3s ease;
+}
+
+/* Chat Section */
+.chat-section {
+  flex: 1;
+  overflow-y: auto;
+  background: white;
+  border-radius: 10px;
+  padding: 12px;
+  margin: 16px 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.message {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  max-width: 80%;
+}
+
+.user-message {
+  background-color: #e9ecef;
+  margin-left: auto;
+}
+
+.gpt-message {
+  background-color: #f8f9fa;
+  margin-right: auto;
+}
+
+/* Input Section */
+.input-section {
+  background: white;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.message-input {
+  width: 100%;
+  min-height: 100px;
+  max-height: 200px;
+  padding: 8px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  margin-bottom: 0px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  outline: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.message-input[placeholder]:empty:before {
+  content: attr(placeholder);
+  color: #6c757d;
+}
+
+.message-input .images-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.message-input .images-container:empty {
+  display: none;
+  margin-bottom: 0;
+}
+
+.message-input .images-container img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.message-input .text-container {
+  flex: 1;
+  white-space: pre-wrap;
+}
+
+.button-container {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+button {
+  background-color: #10b981;
+  color: white;
+  border: none;
+  padding: 2px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #059669;
+}
+
+.pause-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+  margin-top: 15px;
+}
+
+.pause-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+/* Utility Classes */
+.mb-2 {
+  margin-bottom: 2px;
+}
+
+.mt-2 {
+  margin-top: 2px;
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Status Elements */
+#state, #elapsedTime, #status, #pageId, #totalTurns {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+/* Image List */
+#imgList {
+  font-size: 13px;
+  color: #4b5563;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 4px;
+  padding-bottom: 20px;  /* 添加底部內邊距 */
+}
+
+#imgList div {
+  padding: 4px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+#imgList div:last-child {
+  border-bottom: none;
+  margin-bottom: 4px;  /* 為最後一個項目添加底部外邊距 */
+}
+
+/* Checkbox Styling */
+input[type="checkbox"] {
+  accent-color: #10b981;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Prompt List Styles */
+#promptList {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #4b5563;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.prompt-item {
+  padding: 4px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.prompt-item:last-child {
+  border-bottom: none;
+}
