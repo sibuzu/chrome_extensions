@@ -1,0 +1,45 @@
+{
+   "action": {
+      "default_icon": {
+         "16": "icons/icon16.png",
+         "19": "icons/icon19.png",
+         "32": "icons/icon32.png",
+         "38": "icons/icon38.png"
+      },
+      "default_title": "YouTube Subtitles"
+   },
+   "background": {
+      "service_worker": "background.js"
+   },
+   "content_scripts": [ {
+      "js": [ "content.js" ],
+      "matches": [ "*://www.youtube.com/*" ]
+   } ],
+   "host_permissions": [ "*://*.youtube.com/*" ],
+   "icons": {
+      "128": "icons/icon128.png",
+      "16": "icons/icon16.png",
+      "19": "icons/icon19.png",
+      "32": "icons/icon32.png",
+      "38": "icons/icon38.png",
+      "48": "icons/icon48.png"
+   },
+   "manifest_version": 3,
+   "minimum_chrome_version": "116",
+   "name": "MySRT",
+   "optional_host_permissions": [ "https://*.workers.dev/*" ],
+   "permissions": [ "activeTab", "sidePanel", "tabs", "scripting", "storage", "windows" ],
+   "side_panel": {
+      "default_path": "sidebar.html",
+      "open_panel_on_action_click": true
+   },
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "1.4",
+   "web_accessible_resources": [ {
+      "matches": [ "*://*.youtube.com/*" ],
+      "resources": [ "lib/index.js", "lib/formatters.js", "sidebar.js", "content.js", "store/index.js", "node_modules/redux/es/redux.js", "node_modules/webext-redux/dist/webext-redux.js", "login.html", "login.js" ]
+   }, {
+      "matches": [ "\u003Call_urls>" ],
+      "resources": [ "lib/full.js" ]
+   } ]
+}

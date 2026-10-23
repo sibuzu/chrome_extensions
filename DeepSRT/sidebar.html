@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>YouTube Subtitles</title>
+  <meta charset="UTF-8">
+  <!-- Add OpenCC library before any other scripts -->
+  <script src="lib/full.js"></script>
+  <style>
+    :root {
+      --bg-primary: #ffffff;
+      --bg-primary-rgb: 255, 255, 255;
+      --bg-secondary: #f3f4f6;
+      --bg-secondary-rgb: 243, 244, 246;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --border-color: #e5e7eb;
+      --button-bg: #2563eb;
+      --button-hover: #1d4ed8;
+      --error-bg: rgba(55, 65, 81, 0.95);
+      --error-border: var(--border-color);
+      --error-text: var(--text-primary);
+      --alert-bg: rgba(243, 244, 246, 0.95);
+      --alert-border: #e5e7eb;
+      --alert-text: #4b5563;
+      --alert-shadow: rgba(0, 0, 0, 0.1);
+    }
+
+    :root[data-theme="dark"] {
+      --bg-primary: #1f2937;
+      --bg-primary-rgb: 31, 41, 55;
+      --bg-secondary: #374151;
+      --bg-secondary-rgb: 55, 65, 81;
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --border-color: #4b5563;
+      --button-bg: #3b82f6;
+      --button-hover: #2563eb;
+      --error-bg: rgba(30, 41, 59, 0.95);
+      --error-border: var(--border-color);
+      --error-text: var(--text-primary);
+      --alert-bg: rgba(55, 65, 81, 0.95);
+      --alert-border: #4b5563;
+      --alert-text: #d1d5db;
+      --alert-shadow: rgba(0, 0, 0, 0.25);
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: system-ui, -apple-system, sans-serif;
+      transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    }
+
+    body {
+      padding: 16px;
+    }
+
+    /* Error alerts */
+    .alert {
+      padding: 12px 16px;
+      margin: 8px 0;
+      border-radius: 4px;
+      font-size: 14px;
+      display: none;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s, visibility 0.3s;
+    }
+
+    .alert.visible {
+      display: flex;
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .error-alert {
+      background-color: var(--error-bg);
+      border: 1px solid var(--error-border);
+      color: var(--error-text);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .container {
+      max-width: 100%;
+      margin: 0 auto;
+    }
+
+    .controls {
+      position: sticky;
+      top: 0;
+      background: var(--bg-primary);
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+      z-index: 100;
+      transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+      margin: -16px -16px 16px -16px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .controls-left {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .controls-right {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    select {
+      background-color: var(--bg-secondary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      padding: 0.5rem;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+
+    select:hover {
+      border-color: var(--button-bg);
+    }
+
+    select:focus {
+      outline: none;
+      border-color: var(--button-bg);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+    }
+
+    .theme-toggle {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease-in-out;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--button-bg);
+      background: var(--bg-secondary);
+    }
+
+    .theme-toggle svg {
+      width: 20px;
+      height: 20px;
+      transition: opacity 0.2s ease-in-out;
+    }
+
+    .theme-toggle .sun-icon {
+      display: block;
+    }
+
+    .theme-toggle .moon-icon {
+      display: none;
+    }
+
+    [data-theme="dark"] .theme-toggle .sun-icon {
+      display: none;
+    }
+
+    [data-theme="dark"] .theme-toggle .moon-icon {
+      display: block;
+    }
+
+    .auth-button {
+      display: none;
+      align-items: center;
+      background: var(--button-bg);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+
+    .auth-button:hover {
+      background: var(--button-hover);
+    }
+
+    #logoutBtn {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+
+    #logoutBtn:hover {
+      background: var(--bg-primary);
+      border-color: var(--button-bg);
+    }
+
+    .video-info {
+      margin: 0 0 16px 0;
+      padding: 16px;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .video-title {
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+      font-size: 16px;
+      color: var(--text-primary);
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+
+    .video-title .translated {
+      display: block;
+      font-size: 22px;
+      margin-bottom: 1px;
+      color: var(--text-primary);
+    }
+
+    .video-title .original {
+      display: block;
+      font-size: 14px;
+      color: var(--text-secondary);
+      font-weight: normal;
+    }
+
+    #videoId {
+      font-size: 8px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .transcript-container {
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .transcript-toolbar {
+      display: flex;
+      gap: 8px;
+      background: var(--bg-secondary);
+      justify-content: right;
+      border-radius: 4px 4px 0 0;
+      padding: 8px 22px 4px 22px;
+      border-bottom: none;
+      margin-bottom: 0;
+      border-left: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+      border-top: 1px solid var(--border-color);
+    }
+    
+    #transcriptCopyBtn {
+      position: relative;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      opacity: 0.8;
+      transition: all 0.2s ease-in-out;
+    }
+    
+    #transcriptCopyBtn:hover {
+      opacity: 1;
+      background: rgba(0, 0, 0, 0.05);
+      color: var(--text-primary);
+    }
+    
+    #transcriptCopyBtn.copied .copy-icon {
+      opacity: 0;
+    }
+    
+    #transcriptCopyBtn.copied .check-icon {
+      opacity: 1;
+    }
+    
+    #transcriptCopyBtn .check-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity 0.2s ease-in-out;
+    }
+
+    .transcript {
+      height: auto;
+      overflow-y: visible;
+      font-size: small;
+      white-space: pre-wrap;
+      background: var(--bg-secondary);
+      padding: 16px 22px;
+      padding-top: 0;
+      border-radius: 0 0 4px 4px;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+      border-top: none;
+      transition: color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+      margin-top: 0;
+    }
+
+    .transcript.error {
+      background: var(--bg-secondary) !important;
+      border: 1px solid var(--border-color) !important;
+      border-top: none !important;
+      color: var(--text-secondary) !important;
+      font-style: normal;
+      opacity: 1;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+
+    .error {
+      color: var(--error-text);
+      font-style: normal;
+      transition: all 0.3s ease-in-out;
+    }
+
+    .summary-container {
+      position: relative;
+      margin-bottom: 1rem;
+      opacity: 0;
+      visibility: hidden;
+      height: 0;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+      transition: opacity 0.2s, visibility 0.2s, height 0.2s, margin 0.2s, padding 0.2s;
+    }
+    
+    .summary-container.visible {
+      opacity: 1;
+      visibility: visible;
+      height: auto;
+      margin-bottom: 1rem;
+      overflow: visible;
+      display: block;
+    }
+
+    .summary-container.error {
+      opacity: 1;
+      visibility: visible;
+      height: auto;
+      margin-bottom: 1rem;
+      overflow: visible;
+      display: block;
+    }
+
+    .summary-container.error .summary {
+      background-color: var(--error-bg);
+      border: 1px solid var(--error-border);
+      color: var(--error-text);
+      padding: 12px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-top: 0;
+      font-weight: 500;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .summary-container.error .summary-toolbar {
+      display: none;
+    }
+
+    .summary-toolbar {
+      display: flex;
+      gap: 8px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s, visibility 0.2s;
+      background: var(--bg-secondary);
+      justify-content: right;
+      border-radius: 4px 4px 0 0;
+      padding: 8px;
+    }
+    
+    .summary-toolbar.visible {
+      opacity: 1;
+      visibility: visible;
+      padding: 8px 22px 4px 22px;
+    }
+
+    .summary-toolbar.translating {
+      opacity: 0.7;
+    }
+    
+    .summary {
+      margin-top: 0;
+      padding: 1rem;
+      padding-top: 0;
+      background: var(--bg-secondary);
+      border-radius: 0 0 4px 4px;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      transition: border-radius 0.2s ease-in-out, opacity 0.2s ease-in-out;
+    }
+
+    .summary.translating {
+      border-radius: 4px;
+      padding-top: 1rem;
+      opacity: 0.7;
+      font-style: italic;
+    }
+    
+    .font-size-button, .copy-button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      opacity: 0.9;
+      transition: opacity 0.2s, background-color 0.2s;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      padding: 8px;
+      margin: 0;
+    }
+    
+    .font-size-button:hover, .copy-button:hover {
+      opacity: 1;
+      background: var(--bg-secondary);
+    }
+
+    .font-size-button {
+      position: relative;
+      padding: 1px;
+    }
+
+    .font-size-menu {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      display: none;
+      z-index: 1000;
+      padding: 4px 0;
+      min-width: 60px;
+      margin-top: 4px;
+    }
+
+    .font-size-menu.visible {
+      display: block;
+    }
+
+    .font-size-option {
+      padding: 4px 12px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .font-size-option:hover {
+      background: var(--bg-secondary);
+    }
+
+    .font-size-option.selected {
+      background: var(--bg-secondary);
+      font-weight: bold;
+    }
+
+    .font-size-button:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .copy-button {
+      padding: 8px;
+      opacity: 0.5;
+    }
+
+    .copy-button svg {
+      width: 16px;
+      height: 16px;
+      position: absolute;
+      transition: opacity 0.2s;
+    }
+    
+    .copy-button .check-icon {
+      width: 14px;
+      height: 14px;
+      opacity: 0;
+    }
+    
+    .copy-button.copied .copy-icon {
+      opacity: 0;
+    }
+    
+    .copy-button.copied .check-icon {
+      opacity: 1;
+      display: block;
+    }
+    
+    .copy-button path {
+      fill: var(--text-primary);
+    }
+
+    .loading {
+      opacity: 0.7;
+    }
+
+    .refresh-button.needs-refresh {
+      color: #ff9800;
+      background: var(--bg-secondary);
+    }
+
+    /* Loading states */
+    .loading, .translating {
+      opacity: 0.7;
+    }
+
+    /* CC button states */
+    #ccBtn.active {
+      color: var(--text-primary);
+      opacity: 1;
+      background: var(--bg-secondary);
+    }
+
+    #ccBtn.inactive {
+      opacity: 0.8;
+    }
+
+    /* State transitions */
+    .error, .loading, .translating {
+      transition: all 0.3s ease-in-out;
+    }
+
+    /* Alert Container */
+    .alert-container {
+      position: absolute;
+      left: 0;
+      right: 0;
+      width: 100%;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      height: 0;
+      overflow: hidden;
+      transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .alert-container.visible {
+      position: relative;
+      opacity: 1;
+      visibility: visible;
+      height: auto;
+      overflow: visible;
+      margin-bottom: 16px;
+    }
+
+    .alert {
+      background-color: var(--alert-bg);
+      border: 1px solid var(--alert-border);
+      color: var(--alert-text);
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      line-height: 1.5;
+      box-shadow: 0 2px 8px var(--alert-shadow);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      min-height: 48px;
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 0.3s ease-in-out;
+    }
+
+    .error-alert {
+      background-color: var(--error-bg);
+      border: 1px solid var(--error-border);
+      color: var(--error-text);
+      font-weight: 500;
+    }
+
+    .alert-content {
+      flex: 1;
+      margin-right: 8px;
+      font-weight: 500;
+    }
+
+    .alert-close {
+      background: none;
+      border: none;
+      color: var(--alert-text);
+      cursor: pointer;
+      padding: 4px;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+      font-size: 18px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 24px;
+      min-height: 24px;
+    }
+
+    .alert-close:hover {
+      opacity: 1;
+    }
+
+    /* Mock Mode Indicator */
+    .mock-indicator {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+
+    .mock-indicator.active {
+      background: #fef3c7;
+      color: #92400e;
+      border-color: #fbbf24;
+    }
+
+    .mock-indicator:hover {
+      border-color: var(--button-bg);
+    }
+
+    /* Add these CSS rules where the other button states are defined */
+    #bulletListBtn.active {
+      color: var(--text-primary);
+      opacity: 1;
+      background: var(--bg-secondary);
+    }
+
+    #bulletListBtn.inactive {
+      opacity: 0.8;
+    }
+
+    /* Configuration Menu Popup */
+    .config-menu {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--bg-primary);
+      background-color: rgba(var(--bg-primary-rgb), 0.8);
+      backdrop-filter: blur(5px);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      display: none;
+      z-index: 1000;
+      padding: 16px;
+      width: 350px;
+    }
+    
+    .config-menu.visible {
+      display: block;
+    }
+
+    .config-menu-header {
+      font-weight: bold;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+
+    .config-menu-item {
+      margin-bottom: 16px;
+      width: 90%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .config-menu-item label {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .config-menu-item input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 14px;
+      background-color: var(--bg-secondary);
+      color: var(--text-primary);
+      box-sizing: border-box;
+      margin-top: 4px;
+    }
+
+    .config-menu-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .config-menu-actions button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .config-menu-actions button:hover {
+      background: var(--bg-secondary);
+    }
+
+    /* Permission Overlay */
+    .permission-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(3px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+
+    .permission-dialog {
+      background-color: rgba(var(--bg-primary-rgb), 0.95);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      width: 350px;
+      max-width: 90%;
+      padding: 20px;
+    }
+
+    .permission-header {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    .permission-content {
+      margin-bottom: 20px;
+      color: var(--text-primary);
+    }
+
+    .permission-url {
+      background-color: var(--bg-secondary);
+      padding: 8px 12px;
+      border-radius: 4px;
+      word-break: break-all;
+      margin: 10px 0;
+      font-family: monospace;
+      font-size: 14px;
+      color: var(--accent-color);
+    }
+
+    .permission-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .permission-actions button {
+      padding: 8px 16px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-secondary);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .permission-actions button:hover {
+      background-color: var(--accent-color);
+      color: white;
+    }
+
+    #permissionAllowBtn {
+      background-color: var(--accent-color);
+      color: white;
+    }
+
+    #permissionDenyBtn {
+      background-color: transparent;
+    }
+  </style>
+</head>
+<body>
+    <div class="container">
+      <div class="controls">
+      <div class="controls-left">
+        <select id="format">
+          <option value="text">Text</option>
+          <option value="srt">SRT</option>
+          <option value="json">JSON</option>
+        </select>
+        <select id="uiLang">
+          <option value="en" selected>English</option>
+          <option value="zh-cn">简体中文</option>
+          <option value="zh-tw">繁體中文(台灣)</option>
+          <option value="zh-hk">繁體中文(香港)</option>
+          <option value="ko">한국어</option>
+          <option value="ja">日本語</option>
+          <option value="fr">Français</option>
+          <option value="es">Español</option>
+          <option value="th">ภาษาไทย</option>
+        </select>
+      </div>
+      <div class="controls-right">
+        <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+          <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        </button>
+        <button class="theme-toggle" id="configButton" title="Configuration">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
+        <button class="theme-toggle" id="refreshButton" title="Refresh content">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+        <button id="loginBtn" class="auth-button">Login</button>
+        <button id="logoutBtn" class="auth-button">Logout</button>
+      </div>
+    </div>
+
+    <div class="video-info">
+      <div class="video-title" id="title">Loading...</div>
+      <div id="videoId"></div>
+    </div>
+
+    <div class="alert-container">
+      <!-- Alerts will be dynamically added here by JavaScript -->
+    </div>
+
+    <div class="summary-container">
+      <div class="summary-toolbar">
+        <button class="font-size-button" id="bulletListBtn" title="Toggle bullet list">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.75,3 C19.940825,3 20.9156417,3.92516222 20.994809,5.09595127 L21,5.25 L21,18.75 C21,19.940825 20.074801,20.9156417 18.9040441,20.994809 L18.75,21 L5.25,21 C4.05913667,21 3.08435514,20.074801 3.00519082,18.9040441 L3,18.75 L3,5.25 C3,4.05913667 3.92516222,3.08435514 5.09595127,3.00519082 L5.25,3 L18.75,3 Z M18.75,4.5 L5.25,4.5 C4.8703075,4.5 4.55650958,4.78215688 4.50684668,5.14823019 L4.5,5.25 L4.5,18.75 C4.5,19.1296833 4.78215688,19.4434889 5.14823019,19.4931531 L5.25,19.5 L18.75,19.5 C19.1296833,19.5 19.4434889,19.2178347 19.4931531,18.8517677 L19.5,18.75 L19.5,5.25 C19.5,4.8703075 19.2178347,4.55650958 18.8517677,4.50684668 L18.75,4.5 Z M7.75,14.75 C8.30228,14.75 8.75,15.1977 8.75,15.75 C8.75,16.3023 8.30228,16.75 7.75,16.75 C7.19772,16.75 6.75,16.3023 6.75,15.75 C6.75,15.1977 7.19772,14.75 7.75,14.75 Z M16.7499,15 C17.1642,15 17.4999,15.3358 17.4999,15.75 C17.4999,16.1296833 17.2178188,16.4434889 16.8516887,16.4931531 L16.7499,16.5 L11.2501,16.5 C10.8358,16.5 10.5001,16.1642 10.5001,15.75 C10.5001,15.3703167 10.7821813,15.0565111 11.1483113,15.0068469 L11.2501,15 L16.7499,15 Z M7.75,11 C8.30228,11 8.75,11.4477 8.75,12 C8.75,12.5523 8.30228,13 7.75,13 C7.19772,13 6.75,12.5523 6.75,12 C6.75,11.4477 7.19772,11 7.75,11 Z M16.7499,11.25 C17.1642,11.25 17.4999,11.5858 17.4999,12 C17.4999,12.4142 17.1642,12.75 16.7499,12.75 L11.2501,12.75 C10.8358,12.75 10.5001,12.4142 10.5001,12 C10.5001,11.5858 10.8358,11.25 11.2501,11.25 L16.7499,11.25 Z M7.75,7.25 C8.30228,7.25 8.75,7.69772 8.75,8.25 C8.75,8.80228 8.30228,9.25 7.75,9.25 C7.19772,9.25 6.75,8.80228 6.75,8.25 C6.75,7.69772 7.19772,7.25 7.75,7.25 Z M16.75,7.5 C17.1642,7.5 17.5,7.83579 17.5,8.25 C17.5,8.66421 17.1642,9 16.75,9 L11.25,9 C10.8358,9 10.5,8.66421 10.5,8.25 C10.5,7.83579 10.8358,7.5 11.25,7.5 L16.75,7.5 Z"/>
+        </svg>
+      </button>
+      <button class="font-size-button" id="fontSizeBtn" title="Adjust font size">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="m22 6-3-4-3 4h2v4h-2l3 4 3-4h-2V6zM9.307 4l-6 16h2.137l1.875-5h6.363l1.875 5h2.137l-6-16H9.307zm-1.239 9L10.5 6.515 12.932 13H8.068z"/>
+        </svg>
+        <div class="font-size-menu" id="fontSizeMenu">
+          <!-- Font size options will be populated by JavaScript -->
+        </div>
+      </button>
+      <button class="font-size-button" id="ccBtn" title="Live Captions">
+        <svg width="16" height="16" viewBox="0 0 122.88 114.83" fill="currentColor">
+          <path d="M25.5,57.01c0-2.51,0.42-4.97,1.26-7.4c0.84-2.43,2.07-4.61,3.68-6.54c1.61-1.93,3.57-3.49,5.87-4.68 c2.3-1.2,4.92-1.79,7.87-1.79c3.53,0,6.59,0.82,9.18,2.46c2.59,1.64,4.52,3.81,5.79,6.51l-7.67,6.13c-0.34-1-0.8-1.83-1.36-2.49 c-0.57-0.66-1.19-1.18-1.88-1.56c-0.69-0.39-1.4-0.66-2.14-0.81c-0.74-0.15-1.45-0.23-2.14-0.23c-1.44,0-2.68,0.32-3.73,0.95 c-1.05,0.64-1.9,1.46-2.57,2.49c-0.67,1.02-1.17,2.18-1.49,3.47c-0.33,1.29-0.49,2.57-0.49,3.85 c0,1.43,0.19,2.8,0.57,4.11c0.38,1.31,0.93,2.47,1.65,3.47c0.72,1,1.6,1.8,2.65,2.4c1.05,0.6,2.22,0.9,3.52,0.9 c0.69,0,1.39-0.09,2.11-0.26c0.72-0.17,1.41-0.46,2.08-0.87c0.67-0.4,1.27-0.93,1.8-1.56c0.53-0.64,0.95-1.42,1.26-2.34l8.18,5.49 c-0.55,1.5-1.38,2.85-2.5,4.05c-1.11,1.2-2.38,2.2-3.81,3.01c-1.42,0.81-2.95,1.43-4.58,1.85c-1.63,0.42-3.22,0.64-4.76,0.64 c-2.71,0-5.19-0.61-7.43-1.82c-2.25-1.21-4.18-2.82-5.81-4.83c-1.63-2-2.89-4.28-3.78-6.82C25.94,62.21,25.5,59.63,25.5,57.01L25.5,57.01L25.5,57.01z M15.77,0 h91.34c4.34,0,8.28,1.77,11.14,4.63s4.63,6.8,4.63,11.14v83.29c0,4.34-1.77,8.28-4.63,11.14c-2.86,2.86-6.8,4.63-11.14,4.63H15.77 c-4.34,0-8.28-1.77-11.14-4.63C1.77,107.34,0,103.4,0,99.06V15.77c0-4.34,1.77-8.29,4.63-11.14C7.48,1.77,11.43,0,15.77,0L15.77,0z M107.11,9.91H15.77c-1.61,0-3.07,0.66-4.13,1.72c-1.06,1.06-1.72,2.53-1.72,4.13v83.29c0,1.61,0.66,3.07,1.72,4.13 c1.06,1.06,2.53,1.72,4.13,1.72h91.34c1.61,0,3.07-0.66,4.13-1.72c1.06-1.06,1.72-2.53,1.72-4.13V15.77c0-1.61-0.66-3.07-1.72-4.13 C110.18,10.57,108.72,9.91,107.11,9.91L107.11,9.91z M63.38,57.01c0-2.51,0.42-4.97,1.26-7.4c0.84-2.43,2.07-4.61,3.68-6.54 c1.61-1.93,3.57-3.49,5.87-4.68c2.3-1.2,4.92-1.79,7.87-1.79c3.53,0,6.59,0.82,9.18,2.46c2.59,1.64,4.52,3.81,5.79,6.51l-7.67,6.13 c-0.34-1-0.8-1.83-1.36-2.49c-0.57-0.66-1.19-1.18-1.88-1.56c-0.69-0.39-1.4-0.66-2.14-0.81c-0.74-0.15-1.45-0.23-2.14-0.23 c-1.44,0-2.68,0.32-3.73,0.95c-1.05,0.64-1.9,1.46-2.57,2.49c-0.67,1.02-1.17,2.18-1.49,3.47c-0.33,1.29-0.49,2.57-0.49,3.85 c0,1.43,0.19,2.8,0.57,4.11c0.38,1.31,0.93,2.47,1.65,3.47c0.72,1,1.6,1.8,2.65,2.4c1.05,0.6,2.22,0.9,3.52,0.9 c0.69,0,1.39-0.09,2.11-0.26c0.72-0.17,1.41-0.46,2.08-0.87c0.67-0.4,1.27-0.93,1.8-1.56c0.53-0.64,0.95-1.42,1.26-2.34l8.18,5.49 c-0.55,1.5-1.38,2.85-2.5,4.05c-1.11,1.2-2.38,2.2-3.81,3.01c-1.42,0.81-2.95,1.43-4.58,1.85c-1.63,0.42-3.22,0.64-4.76,0.64 c-2.71,0-5.19-0.61-7.43-1.82c-2.25-1.21-4.18-2.82-5.81-4.83c-1.63-2-2.89-4.28-3.78-6.82C63.82,62.21,63.37,59.63,63.38,57.01 L63.38,57.01L63.38,57.01z M63.38,57.01z"/>
+        </svg>
+      </button>
+      <button class="copy-button">
+        <svg class="copy-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M7 5C7 3.34315 8.34315 2 10 2H19C20.6569 2 22 3.34315 22 5V14C22 15.6569 20.6569 17 19 17H17V19C17 20.6569 15.6569 22 14 22H5C3.34315 22 2 20.6569 2 19V10C2 8.34315 3.34315 7 5 7H7V5ZM9 7H14C15.6569 7 17 8.34315 17 10V15H19C19.5523 15 20 14.5523 20 14V5C20 4.44772 19.5523 4 19 4H10C9.44772 4 9 4.44772 9 5V7ZM5 9C4.44772 9 4 9.44772 4 10V19C4 19.5523 4.44772 20 5 20H14C14.5523 20 15 19.5523 15 19V10C15 9.44772 14.5523 9 14 9H5Z" fill="currentColor"/>
+        </svg>
+        <svg class="check-icon" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clip-rule="evenodd" viewBox="0 0 512 459.53">
+          <path fill-rule="nonzero" d="M9.38 212.26l91.05-1.2c1.9-.01 3.69.53 5.19 1.49 32.96 19.01 62.2 42.95 87.35 71.5 33.32-54.09 68.94-103.63 106.55-149.04C339.7 86.5 382.32 42.5 426.98 2.46a9.464 9.464 0 016.33-2.41L502.67 0c8.53 0 12.23 9.31 6.73 16.26-61.47 68.29-117.32 139.05-167.78 212a2075.014 2075.014 0 00-135.99 226.12c-2.4 4.65-8.14 6.49-12.79 4.09a9.476 9.476 0 01-4.35-4.63C146.26 363.35 86.92 286.45 4.14 229.6c-7.67-5.25-3.96-17.2 5.24-17.34z" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+    <div class="summary" id="summary"></div>
+  </div>
+
+  <!-- Configuration Menu Popup -->
+  <div class="config-menu" id="configMenu">
+    <div class="config-menu-header">Configuration</div>
+    <div class="config-menu-item">
+      <label for="srtProviderInput">SRT Provider URL:</label>
+      <input type="text" id="srtProviderInput">
+    </div>
+    <div class="config-menu-actions">
+      <button id="saveConfigBtn">Save</button>
+      <button id="cancelConfigBtn">Cancel</button>
+    </div>
+  </div>
+
+  <div class="transcript-container">
+    <div class="transcript-toolbar">
+      <button id="transcriptCopyBtn" title="Copy Transcript">
+        <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M7 5C7 3.34315 8.34315 2 10 2H19C20.6569 2 22 3.34315 22 5V14C22 15.6569 20.6569 17 19 17H17V19C17 20.6569 15.6569 22 14 22H5C3.34315 22 2 20.6569 2 19V10C2 8.34315 3.34315 7 5 7H7V5ZM9 7H14C15.6569 7 17 8.34315 17 10V15H19C19.5523 15 20 14.5523 20 14V5C20 4.44772 19.5523 4 19 4H10C9.44772 4 9 4.44772 9 5V7ZM5 9C4.44772 9 4 9.44772 4 10V19C4 19.5523 4.44772 20 5 20H14C14.5523 20 15 19.5523 15 19V10C15 9.44772 14.5523 9 14 9H5Z" fill="currentColor"/>
+        </svg>
+        <svg class="check-icon" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clip-rule="evenodd" viewBox="0 0 512 459.53" width="16" height="16">
+          <path fill-rule="nonzero" d="M9.38 212.26l91.05-1.2c1.9-.01 3.69.53 5.19 1.49 32.96 19.01 62.2 42.95 87.35 71.5 33.32-54.09 68.94-103.63 106.55-149.04C339.7 86.5 382.32 42.5 426.98 2.46a9.464 9.464 0 016.33-2.41L502.67 0c8.53 0 12.23 9.31 6.73 16.26-61.47 68.29-117.32 139.05-167.78 212a2075.014 2075.014 0 00-135.99 226.12c-2.4 4.65-8.14 6.49-12.79 4.09a9.476 9.476 0 01-4.35-4.63C146.26 363.35 86.92 286.45 4.14 229.6c-7.67-5.25-3.96-17.2 5.24-17.34z" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+    <pre id="transcript" class="transcript">Loading transcript...</pre>
+  </div>
+</div>
+
+  <!-- Load bundled script -->
+  <script src="sidebar.js"></script>
+</body>
+</html>

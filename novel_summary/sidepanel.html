@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Novel Summary</title>
+  <link rel="stylesheet" href="style.css">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Settings Icon / Toggle (Optional, but good for hiding API key) -->
+  <div class="header">
+    <h1>Novel Summary</h1>
+    <button id="settings-toggle" title="Settings">⚙️</button>
+  </div>
+
+  <div id="settings-panel" class="hidden">
+    <div class="input-group">
+      <label for="api-key">Gemini API Key</label>
+      <input type="password" id="api-key" placeholder="Enter your API Key">
+    </div>
+  </div>
+
+  <!-- Region 1: Prompt -->
+  <div class="region-1">
+    <label for="prompt-input">Prompt</label>
+    <textarea id="prompt-input" placeholder="Enter your custom prompt here...">Please summarize this novel chapter. Focus on the main plot points and character development.</textarea>
+  </div>
+
+  <!-- Region 2: Submit + Output -->
+  <div class="region-2">
+    <button id="submit-btn">
+      <span class="btn-text">Summit</span> <!-- User requested "Summit" specifically, keeping as per request or fixing to Submit? User said "summit box", "按下 summit 時". I will use "Summit" label but maybe "Summarize" feels better? I'll stick to Sumit/Summarize but the user said "Summit". Wait, "Summit" is likely a typo for "Submit". I will use "Summarize" for better UX but call it submit-btn. Or I will just use "Submit" to be safe. "Summarize" is definitely better. I'll use "Scrape & Summarize" or just "Summarize". Let's go with "Summarize" but keep the user's logic in mind. -->
+    </button>
+    
+    <label for="output-box">Summary</label>
+    <div class="output-container">
+      <div id="loading" class="hidden">
+        <div class="spinner"></div>
+        <span>Generating summary...</span>
+      </div>
+      <div id="output-content" class="markdown-body"></div>
+    </div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
